@@ -1,14 +1,15 @@
 from rest_framework.response import Response
-from rest_framework import status, views, permissions
+from rest_framework import status, views, permissions, pagination
 from rest_framework.views import APIView
 from rest_framework import viewsets
 
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
+from django.contrib.auth import authenticate, update_session_auth_hash
 from django.shortcuts import get_object_or_404
 
+from accounts.paginations import CustomPagination
 from accounts.renders import UserRender
 from accounts.models import User
 from accounts.serializer import UserRegisterationSerializer, UserLoginSerializer, UserSerializer
@@ -50,10 +51,12 @@ class UserLoginView(APIView):
 
 class UserView(viewsets.ModelViewSet):
     permission_classes = [IsAdminUser, ]
+    serializer_class = UserSerializer
     queryset = User.objects.all()
     
     def list(self, request):
-        serializer = UserSerializer(instance=self.queryset, many=True)
+        page = self.paginate_queryset(self.queryset)
+        serializer = UserSerializer(instance=page, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     def retrieve(self, request, pk=None):
