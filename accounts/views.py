@@ -3,14 +3,15 @@ from rest_framework import status, views, permissions
 from rest_framework.views import APIView
 from rest_framework import viewsets
 
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
+from django.shortcuts import get_object_or_404
 
 from accounts.renders import UserRender
 from accounts.models import User
-from accounts.serializer import UserRegisterationSerializer, UserLoginSerializer
+from accounts.serializer import UserRegisterationSerializer, UserLoginSerializer, UserSerializer
 
 
 def get_tokens_for_user(user):
@@ -41,9 +42,36 @@ class UserLoginView(APIView):
             user = authenticate(username=username, password=password)
             if user is not None:
                 token = get_tokens_for_user(user)
-                login(request, user)
                 return Response({'token':token, 'msg':'login success...'}, status=status.HTTP_200_OK)
         
         return Response({'errors': {'non_field_errors':['username or password is not valid!!']}},
                         status=status.HTTP_404_NOT_FOUND)
+
+
+class UserView(viewsets.ModelViewSet):
+    permission_classes = [IsAdminUser, ]
+    queryset = User.objects.all()
+    
+    def list(self, request):
+        serializer = UserSerializer(instance=self.queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def retrieve(self, request, pk=None):
+        user = get_object_or_404(self.queryset, pk=pk)
+        serializer = UserSerializer(instance=user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    def partial_update(self, request, pk=None):
+        user = get_object_or_404(self.queryset, pk=pk)
+        serializer = UserSerializer(instance=user, data=request.POST, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
+        return Response(serializer.errors, status=status.HTTP_406_NOT_ACCEPTABLE)
+    
+    def destroy(self, request, pk=None):
+        user = get_object_or_404(self.queryset, pk=pk)
+        user.is_active = False
+        user.save()
+        return Response({'msg': 'user deactivated...'})
 

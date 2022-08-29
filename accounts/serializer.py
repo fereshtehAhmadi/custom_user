@@ -28,6 +28,8 @@ class UserRegisterationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.pop('password2')
         user = User.objects.create(**validated_data)
+        user.set_password(validated_data['password'])
+        user.save()
         return user
 
 
@@ -36,3 +38,9 @@ class UserLoginSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['username', 'password']
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = '__all__'
